@@ -79,5 +79,5 @@ export default function LongFlatlist() {
 const styles = StyleSheet.create({
   listItemText: { fontSize: 16 },
   imageStyle: { width: 200, height: 200 },
-  flatlistStyle: { height: '100vh', padding: '100px 200px' }
+  flatlistStyle: { height: '100vh', padding: '10%' }
 });
