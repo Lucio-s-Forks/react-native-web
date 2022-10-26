@@ -1,6 +1,7 @@
 {
     "tasks": {
       "build-&-run-examples": {
+        "name": "build-and-run-examples",
         "command": "cd examples/react-native-web-examples && npm run build && npm run start",
         "runAtStart": true
       }
