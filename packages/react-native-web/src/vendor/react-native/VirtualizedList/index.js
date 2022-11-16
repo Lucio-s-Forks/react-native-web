@@ -1187,9 +1187,13 @@ export default class VirtualizedList extends StateSafePureComponent<
       inLayout: true,
     };
     const curr = this._frames[cellKey];
-    // Measures on discarded Low Priority updates will return zero for dimensions in Web, even negative offsets  
-    // no cell should have an offset of zero on frames, except for first cell
-    if (next.offset < 0 || next.length === 0 || (next.offset === 0 && index !== 0)) {
+    // Measures on discarded Low Priority updates will return zero for dimensions in Web, even negative offsets
+    // no cell should have an offset of zero in frames, except for first cell
+    if (
+      next.offset < 0 ||
+      next.length === 0 ||
+      (next.offset === 0 && index !== 0)
+    ) {
       this._scheduleCellsToRenderUpdate();
       return;
     }
