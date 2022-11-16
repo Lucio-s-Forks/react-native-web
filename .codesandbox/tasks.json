@@ -1,0 +1,9 @@
+{
+    "tasks": {
+        "run-examples": {
+        "name": "run-examples",
+        "command": "cd packages/react-native-web-examples && npm run dev",
+        "runAtStart": true
+        }
+    }
+}
