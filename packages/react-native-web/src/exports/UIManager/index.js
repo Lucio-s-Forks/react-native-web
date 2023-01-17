@@ -94,12 +94,25 @@ function getMatrixOfElement(element) {
   return { matrix, originCoord };
 }
 
-function getElCenterRelativeViewport(elTransformer) {
-  const elRect = elTransformer.element.getBoundingClientRect();
+function getElTransformOriginRelativeViewport(node) {
+  const elRect = node.getBoundingClientRect();
 
   return {
-    elTransformerCenterX_RelativeViewport: elRect.width / 2 + elRect.left,
-    elTransformerCenterY_RelativeViewport: elRect.height / 2 + elRect.top
+    nodeCenterX: elRect.left + elRect.width / 2,
+    nodeCenterY: elRect.top + elRect.height / 2
+  };
+}
+
+function getElCenterRelativeViewport(node) {
+  const elRect = node.getBoundingClientRect();
+
+  return {
+    nodeCenterX: elRect.left + elRect.width / 2,
+    nodeCenterY: elRect.top + elRect.height / 2
+    // nodeCenterX: elRect.left + Math.round(elRect.width) / 2,
+    // nodeCenterY:  elRect.top + Math.round(elRect.height) / 2,
+    // nodeCenterX: elRect.left + Math.ceil(elRect.width) / 2,
+    // nodeCenterY:  elRect.top + Math.ceil(elRect.height) / 2,
   };
 }
 
@@ -129,13 +142,16 @@ function convertCoord({ combinedMatrix: matrix, elementsWithTransform }, node) {
   // TODO: optimize
   //add sanity checks and default values
 
-  if (matrix.length === 6) {
+  if (matrix.length === 6 && elementsWithTransform.length) {
+    elementsWithTransform.reverse();
+    // STEP 1: Get the center of the element
+
     console.log('About to convert offset of', node);
-    const rect = getBoundingClientRect(node);
-    const bottom = rect.bottom;
-    const right = rect.right;
-    const top = rect.top;
-    const left = rect.left;
+    // const rect = getBoundingClientRect(node);
+    // const bottom = rect.bottom;
+    // const right = rect.right;
+    // const top = rect.top;
+    // const left = rect.left;
     // console.log('node Y', y);
     // console.log('node X', x);
     // const originCoord = elementsWithTransform[0];
@@ -164,10 +180,21 @@ function convertCoord({ combinedMatrix: matrix, elementsWithTransform }, node) {
     // let yElCentralPoint = y
     // let xElCentralPoint = x
     // console.log('Elements With Transform Before Iteration', elementsWithTransform);
-    let convertedTop = top;
-    let convertedLeft = left;
-    let convertedBottom = bottom;
-    let convertedRight = right;
+    // let convertedTop = top;
+    // let convertedLeft = left;
+    // let convertedBottom = bottom;
+    // let convertedRight = right;
+
+    let { nodeCenterX, nodeCenterY } = getElCenterRelativeViewport(node);
+
+    console.log(elementsWithTransform[0]);
+    const originsReverted = [];
+    // let {
+    //   nodeCenterX : transformerCenterX,
+    //   nodeCenterY: transformerCenterY,
+    // } = getElTransformOriginRelativeViewport(elementsWithTransform[0].element);
+
+    // originsReverted.push({transformerCenterX, transformerCenterY})
 
     // for(let i = elementsWithTransform.length - 1; i >= 0; i--) {
     for (let i = 0; i < elementsWithTransform.length; i++) {
@@ -175,11 +202,12 @@ function convertCoord({ combinedMatrix: matrix, elementsWithTransform }, node) {
       console.log(
         'Start iteration',
         i,
-        'convertedTop',
-        convertedTop,
-        'convertedBottom',
-        convertedBottom
+        'nodeCenterX',
+        nodeCenterX,
+        'nodeCenterY',
+        nodeCenterY
       );
+
       const elTransformer = elementsWithTransform[i];
       // const matrix = elementsWithTransform[i].matrix;
       // console.log('matrix', t, 'Element', elementsWithTransform[i].element);
@@ -197,86 +225,153 @@ function convertCoord({ combinedMatrix: matrix, elementsWithTransform }, node) {
       // const ancestorOriginY_RelativeViewport = ancestorRect.top + ancestorOriginY_Transformed;
       // const ancestorOriginX_RelativeViewport = ancestorRect.left + ancestorOriginX_Transformed;
 
-      const {
-        elTransformerCenterX_RelativeViewport,
-        elTransformerCenterY_RelativeViewport
-      } = getElCenterRelativeViewport(elTransformer);
+      // STEP 2: Get the central point of the transformer
+      //       const {
+      //   nodeCenterX : nextTransformerX,
+      //   nodeCenterY: nextTransformerY,
+      // } = getElTransformOriginRelativeViewport(elementsWithTransform[i + 1].element);
+
+      // const originsReverted = []
+      let { nodeCenterX: transformerCenterX, nodeCenterY: transformerCenterY } =
+        getElTransformOriginRelativeViewport(elementsWithTransform[i].element);
+      console.log(
+        'CENTER ORIGIN of Transformer BEFORE reverted to previous origin',
+        'transformerCenterX',
+        transformerCenterX,
+        'transformerCenterY',
+        transformerCenterY
+      );
+
+      for (let j = 0; j < originsReverted.length; j++) {
+        const distanceTransformerOriginX =
+          transformerCenterX - originsReverted[j].transformerCenterX;
+        const distanceTransformerOriginY =
+          transformerCenterY - originsReverted[j].transformerCenterY;
+
+        const {
+          revertedX: nextRevertedTransformerX,
+          revertedY: nextRevertedTransformerY
+        } = revertCoord(
+          elementsWithTransform[j].matrix,
+          distanceTransformerOriginX,
+          distanceTransformerOriginY
+        );
+
+        transformerCenterX =
+          originsReverted[j].transformerCenterX + nextRevertedTransformerX;
+        transformerCenterY =
+          originsReverted[j].transformerCenterY + nextRevertedTransformerY;
+
+        // console.log(transformerCenterX, transformerCenterY)
+      }
 
       console.log(
-        'elTransformerCenterX_RelativeViewport',
-        elTransformerCenterX_RelativeViewport,
-        'elTransformerCenterY_RelativeViewport',
-        elTransformerCenterY_RelativeViewport
+        'CENTER ORIGIN of Transformer AFTER reverted to previous origin',
+        'transformerCenterX',
+        transformerCenterX,
+        'transformerCenterY',
+        transformerCenterY
       );
-
-      // Get LEFT and TOP respect to transform-origin of transformer
-
-      // If the element is inverted that means the bottom is the reflection of top of non-inverted element and viceversa. The same goes X axis.
-      const leftToAncestorOrigin =
-        elTransformer.matrix[0] < 0
-          ? elTransformerCenterX_RelativeViewport - convertedRight
-          : elTransformerCenterX_RelativeViewport - convertedLeft;
-      const topToAncestorOrigin =
-        elTransformer.matrix[3] < 0
-          ? elTransformerCenterY_RelativeViewport - convertedBottom
-          : elTransformerCenterY_RelativeViewport - convertedTop;
-
-      // Get RIGHT and BOTTOM respect to transform-origin of transformer
-
-      const rightToAncestorOrigin =
-        elTransformer.matrix[0] < 0
-          ? elTransformerCenterX_RelativeViewport - convertedLeft
-          : elTransformerCenterX_RelativeViewport - convertedRight;
-      const bottomToAncestorOrigin =
-        elTransformer.matrix[3] < 0
-          ? elTransformerCenterY_RelativeViewport - convertedTop
-          : elTransformerCenterY_RelativeViewport - convertedBottom;
+      originsReverted.push({ transformerCenterX, transformerCenterY });
+      console.log(originsReverted);
 
       console.log(
-        'topToAncestorOrigin',
-        topToAncestorOrigin,
-        'bottomToAncestorOrigin',
-        bottomToAncestorOrigin
+        'transformerCenterX',
+        transformerCenterX,
+        'transformerCenterY',
+        transformerCenterY
       );
 
-      // Revert LEFT and TOP
+      // STEP 3: Get the distance between the central point of node and central point of transformer
 
-      const {
-        revertedX: revertedLeftToAncestorOrigin,
-        revertedY: revertedTopToAncestorOrigin
-      } = revertCoord(
-        elTransformer.matrix,
-        leftToAncestorOrigin,
-        topToAncestorOrigin
-      );
+      const nodeXToTransformerX = nodeCenterX - transformerCenterX;
+      const nodeYToTransformerY = nodeCenterY - transformerCenterY;
 
-      console.log('revertedTopToAncestorOrigin', revertedTopToAncestorOrigin);
+      // // Get LEFT and TOP respect to transform-origin of transformer
 
-      convertedLeft =
-        elTransformerCenterX_RelativeViewport - revertedLeftToAncestorOrigin;
-      convertedTop =
-        elTransformerCenterY_RelativeViewport - revertedTopToAncestorOrigin;
+      // // If the element is inverted that means the bottom is the reflection of top of non-inverted element and viceversa. The same goes X axis.
+      // const leftToAncestorOrigin =
+      //   elTransformer.matrix[0] < 0
+      //     ? transformerCenterX - convertedRight
+      //     : transformerCenterX - convertedLeft;
+      // const topToAncestorOrigin =
+      //   elTransformer.matrix[3] < 0
+      //     ? transformerCenterY - convertedBottom
+      //     : transformerCenterY - convertedTop;
 
-      // Revert RIGHT and BOTTOM
+      // // Get RIGHT and BOTTOM respect to transform-origin of transformer
 
-      const {
-        revertedX: revertedRightToAncestorOrigin,
-        revertedY: revertedBottomToAncestorOrigin
-      } = revertCoord(
-        elTransformer.matrix,
-        rightToAncestorOrigin,
-        bottomToAncestorOrigin
-      );
+      // const rightToAncestorOrigin =
+      //   elTransformer.matrix[0] < 0
+      //     ? transformerCenterX - convertedLeft
+      //     : transformerCenterX - convertedRight;
+      // const bottomToAncestorOrigin =
+      //   elTransformer.matrix[3] < 0
+      //     ? transformerCenterY - convertedTop
+      //     : transformerCenterY - convertedBottom;
 
-      console.log(
-        'revertedBottomToAncestorOrigin',
-        revertedBottomToAncestorOrigin
-      );
+      // console.log(
+      //   'topToAncestorOrigin',
+      //   topToAncestorOrigin,
+      //   'bottomToAncestorOrigin',
+      //   bottomToAncestorOrigin
+      // );
 
-      convertedRight =
-        elTransformerCenterX_RelativeViewport - revertedRightToAncestorOrigin;
-      convertedBottom =
-        elTransformerCenterY_RelativeViewport - revertedBottomToAncestorOrigin;
+      // STEP 4: Revert the obtained distance in previous step ? perhaps revert the transform origin of next transformer
+
+      const { revertedX: revertedXDistance, revertedY: revertedYDistance } =
+        revertCoord(
+          elTransformer.matrix,
+          nodeXToTransformerX,
+          nodeYToTransformerY
+        );
+
+      // // Revert LEFT and TOP
+
+      // const {
+      //   revertedX: revertedLeftToAncestorOrigin,
+      //   revertedY: revertedTopToAncestorOrigin
+      // } = revertCoord(
+      //   elTransformer.matrix,
+      //   leftToAncestorOrigin,
+      //   topToAncestorOrigin
+      // );
+
+      // console.log('revertedTopToAncestorOrigin', revertedTopToAncestorOrigin);
+
+      // STEP 5: Add transformer central point to reverted distances so we can get the reverted distance relative to the viewport
+
+      nodeCenterX = transformerCenterX + revertedXDistance;
+      nodeCenterY = transformerCenterY + revertedYDistance;
+
+      // Revert the transformer origin of next transformer
+      // STEP 6: Repeat process until every transformer have been reverted
+
+      // convertedLeft =
+      //   transformerCenterX - revertedLeftToAncestorOrigin;
+      // convertedTop =
+      //   transformerCenterY - revertedTopToAncestorOrigin;
+
+      // // Revert RIGHT and BOTTOM
+
+      // const {
+      //   revertedX: revertedRightToAncestorOrigin,
+      //   revertedY: revertedBottomToAncestorOrigin
+      // } = revertCoord(
+      //   elTransformer.matrix,
+      //   rightToAncestorOrigin,
+      //   bottomToAncestorOrigin
+      // );
+
+      // console.log(
+      //   'revertedBottomToAncestorOrigin',
+      //   revertedBottomToAncestorOrigin
+      // );
+
+      // convertedRight =
+      //   transformerCenterX - revertedRightToAncestorOrigin;
+      // convertedBottom =
+      //   transformerCenterY - revertedBottomToAncestorOrigin;
 
       // const revertedHeightElTransformer = Math.abs(revertedBottom_RelativeViewport - revertedTop_RelativeViewport);
       // const revertedWidthElTransformer = Math.abs(revertedRight_RelativeViewport - revertedLeft_RelativeViewport);
@@ -294,12 +389,16 @@ function convertCoord({ combinedMatrix: matrix, elementsWithTransform }, node) {
         elementsWithTransform[i].element,
         'matrix',
         elementsWithTransform[i].matrix,
-        'origin Y',
-        elementsWithTransform[i].y,
-        'get convertedTop',
-        convertedTop,
-        'convertedBottom',
-        convertedBottom
+        'nodeCenterX',
+        nodeCenterX,
+        'nodeCenterY',
+        nodeCenterY
+        // 'origin Y',
+        // elementsWithTransform[i].y,
+        // 'get convertedTop',
+        // convertedTop,
+        // 'convertedBottom',
+        // convertedBottom
       );
     }
     // // console.log('Y origin to El', originCoord.y)
@@ -324,6 +423,10 @@ function convertCoord({ combinedMatrix: matrix, elementsWithTransform }, node) {
     //   }
     // console.log('xElCentralPoint', xElCentralPoint, 'elementsWithTransform[elementsWithTransform.length-1].x', elementsWithTransform[elementsWithTransform.length-1].x)
     // console.log('yElCentralPoint', yElCentralPoint, 'elementsWithTransform[elementsWithTransform.length-1].y', elementsWithTransform[elementsWithTransform.length-1].y)
+
+    // STEP 7: Get top, left, right and bottom with offsetWidth/offsetHeight and final result of node coordinates
+    // console.log('offsetHeight', node.offsetHeight, 'nodeCenterX', nodeCenterX, 'nodeCenterY', nodeCenterY, 'of node', node);
+
     return {
       //   x: xElCentralPoint - elementsWithTransform[elementsWithTransform.length-1].x,
       //   x: xElCentralPoint,
@@ -331,12 +434,23 @@ function convertCoord({ combinedMatrix: matrix, elementsWithTransform }, node) {
       //   y: yElCentralPoint - elementsWithTransform[elementsWithTransform.length-1].y,
       //   y
       // y: yElCentralPoint
-      top: convertedTop,
-      left: convertedLeft,
-      bottom: convertedBottom,
-      right: convertedRight
+      // top: Math.ceil(nodeCenterY - node.offsetHeight/2),
+
+      top: nodeCenterY - node.offsetHeight / 2,
+      left: nodeCenterX - node.offsetWidth / 2,
+      bottom: nodeCenterY + node.offsetHeight / 2,
+      right: nodeCenterX + node.offsetWidth / 2
+      // top: Math.round(nodeCenterY) - node.offsetHeight/2,
+      // left: Math.round(nodeCenterX) - node.offsetWidth/2,
+      // bottom: Math.round(nodeCenterY) + node.offsetHeight/2,
+      // right: Math.round(nodeCenterX) + node.offsetWidth/2,
+      // top: convertedTop,
+      // left: convertedLeft,
+      // bottom: convertedBottom,
+      // right: convertedRight
     };
   } /*if (transformArr.length > 6)*/ else {
+    return node.getBoundingClientRect();
     //3D matrix
     //haven't done the calculation to apply inverse of 4x4 matrix
   }
@@ -352,7 +466,7 @@ const measureLayout = (node, relativeToNativeNode, callback) => {
 
       //   if(!arraysEqual(transformInfo.combinedMatrix, [1,0,0,1,0,0])) {
 
-      if (transformInfo.elementsWithTransform.length > 0) {
+      if (transformInfo.elementsWithTransform.length) {
         const { height, width } = getRect(node);
         const convertedNode = convertCoord(transformInfo, node);
 
@@ -364,7 +478,17 @@ const measureLayout = (node, relativeToNativeNode, callback) => {
         );
 
         const x = convertedNode.left - convertedRelativeNode.left;
+        console.log(
+          'convertedNode.TOP',
+          convertedNode.top,
+          'convertedRelativeNode.TOP',
+          convertedRelativeNode.top,
+          'REST',
+          convertedNode.top - convertedRelativeNode.top
+        );
+        // const y = Math.ceil(convertedNode.top) - Math.ceil(convertedRelativeNode.top);
         const y = convertedNode.top - convertedRelativeNode.top;
+        // const y = Math.ceil(convertedNode.top - convertedRelativeNode.top);
 
         // console.log(topLeft_pos2);
         callback(x, y, width, height, convertedNode.left, convertedNode.top);
